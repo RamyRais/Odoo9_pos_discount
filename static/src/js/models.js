@@ -1104,14 +1104,18 @@ exports.Orderline = Backbone.Model.extend({
         orderline.selected = false;
         return orderline;
     },
-    // sets a discount [0,100]%
+    // sets a discount [0,maxDiscount]
     set_discount: function(discount){
-        var disc = Math.min(Math.max(parseFloat(discount) || 0, 0),100);
+        var maxDiscount = this.get_unit_price() * this.get_quantity();
+        if (maxDiscount === NaN || maxDiscount === null || maxDiscount === undefined) {
+            maxDiscount = 0;
+        }
+        var disc = Math.min(Math.max(parseFloat(discount) || 0, 0),maxDiscount);
         this.discount = disc;
         this.discountStr = '' + disc;
         this.trigger('change',this);
     },
-    // returns the discount [0,100]%
+    // returns the discount [0,maxDiscount]
     get_discount: function(){
         return this.discount;
     },
@@ -1257,7 +1261,7 @@ exports.Orderline = Backbone.Model.extend({
     },
     get_base_price:    function(){
         var rounding = this.pos.currency.rounding;
-        return round_pr(this.get_unit_price() * this.get_quantity() * (1 - this.get_discount()/100), rounding);
+        return round_pr( (this.get_unit_price() * this.get_quantity() ) - this.get_discount(), rounding);
     },
     get_display_price: function(){
         if (this.pos.config.iface_tax_included) {
@@ -1380,7 +1384,7 @@ exports.Orderline = Backbone.Model.extend({
         return {taxes: list_taxes, total_excluded: total_excluded, total_included: total_included};
     },
     get_all_prices: function(){
-        var price_unit = this.get_unit_price() * (1.0 - (this.get_discount() / 100.0));
+        var price_unit = this.get_unit_price() - (this.get_discount() / this.get_quantity() ) ;
         var taxtotal = 0;
 
         var product =  this.get_product();
@@ -1891,7 +1895,7 @@ exports.Order = Backbone.Model.extend({
     },
     get_total_discount: function() {
         return round_pr(this.orderlines.reduce((function(sum, orderLine) {
-            return sum + (orderLine.get_unit_price() * (orderLine.get_discount()/100) * orderLine.get_quantity());
+            return sum + ( (orderLine.get_unit_price() * orderLine.get_quantity()) - orderLine.get_discount() );
         }), 0), this.pos.currency.rounding);
     },
     get_total_tax: function() {
